@@ -1,0 +1,4 @@
+fun main() {
+    let m: int = 3 + 2;
+    print(m);
+}

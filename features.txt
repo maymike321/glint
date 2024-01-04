@@ -1,0 +1,19 @@
+Version 0.1
+
+Programs are run through a function called main
+
+fn main() {
+    println("Hello world!");
+}
+
+Variables are declared using the let keyword:
+
+let x: int = 5;
+let y: string = "Hello!";
+
+Primitive types are:
+int
+string
+bool
+char
+
