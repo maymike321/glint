@@ -1,10 +1,12 @@
 use std::iter::Peekable;
 use std::str::Chars;
+use rand::prelude::*;
+use std::string::String;
 use crate::token::TokenType::*;
 
 use crate::token::{Token, TokenType};
 
-pub struct Scanner<'a> {
+pub struct Lexer<'a> {
     text: &'a str,
     iterator: Peekable<Chars<'a>>,
     start_position: usize,
@@ -13,11 +15,11 @@ pub struct Scanner<'a> {
     line: usize
 }
 
-impl<'a> Scanner<'a> {
-    pub fn new(text: &'a str)-> Scanner<'a> {
+impl<'a> Lexer<'a> {
+    pub fn new(text: &'a str)-> Lexer<'a> {
         let mut iterator = text.chars().peekable();
         let current = iterator.next();
-        Scanner {
+        Lexer {
             text,
             iterator,
             start_position: 0,
@@ -254,75 +256,96 @@ impl<'a> Scanner<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
     use super::*;
 
     #[test]
-    fn test_scanner_empty() {
+    fn test_lexer_empty() {
         let program = "";
         let expected_tokens = [EOF];
-        test_scanner(program, &expected_tokens);
+        test_lexer(program, &expected_tokens);
     }
 
     #[test]
-    fn test_scanner_thorough() {
+    fn test_lexer_thorough() {
         let program = "(){}&;:,-+/*. .. ! != = == => += < <= > >= \"hello\"             and continue else false for fn if let match or print return true while a b c d efg";
         let expected_tokens = [LeftParen, RightParen, LeftBrace, RightBrace, At, Semicolon, Colon, Comma, Minus, Plus, Slash, Star, Dot, DoubleDot, Bang, BangEqual, Equal, EqualEqual, FatArrow, PlusEqual, Less, LessEqual, Greater, GreaterEqual, String, And, Continue, Else, False, For, Fn, If, Let, Match, Or, Print, Return, True, While, Identifier, Identifier, Identifier, Identifier, Identifier, EOF];
-        test_scanner(program, &expected_tokens);
+        test_lexer(program, &expected_tokens);
     }
 
     #[test]
-    fn test_scanner_eof_after_line_break() {
+    fn test_lexer_eof_after_line_break() {
         let program = "\n";
         let expected_tokens = [EOF];
-        test_scanner(program, &expected_tokens);
+        test_lexer(program, &expected_tokens);
     }
 
     #[test]
-    fn test_scanner_case() {
+    fn test_lexer_case() {
         let program = "AnD aNd ANd anD";
         let expected_tokens = [And, And, And, And, EOF];
-        test_scanner(program, &expected_tokens);
+        test_lexer(program, &expected_tokens);
     }
 
     #[test]
-    fn test_scanner_unterminated_string() {
+    fn test_lexer_unterminated_string() {
         let program = "\"hi";
         let expected_tokens = [Error, EOF];
-        test_scanner(program, &expected_tokens);
+        test_lexer(program, &expected_tokens);
     }
 
     #[test]
-    fn test_scanner_number() {
+    fn test_lexer_number() {
         let program = "2934882.50349";
         let expected_tokens = [Number, EOF];
-        test_scanner(program, &expected_tokens);
+        test_lexer(program, &expected_tokens);
     }
 
     #[test]
-    fn test_scanner_characters() {
+    fn test_lexer_characters() {
         let program = "\'h\'";
         let expected_tokens = [Char, EOF];
-        let tokens = test_scanner(program, &expected_tokens);
+        let tokens = test_lexer(program, &expected_tokens);
         assert_eq!(tokens[0].string, "\'h\'");
     }
 
     #[test]
-    fn test_scanner_characters_multiple_characters() {
+    fn test_lexer_characters_multiple_characters() {
         let program = "\'hi\'";
         let expected_tokens = [Error, EOF];
-        test_scanner(program, &expected_tokens);
+        test_lexer(program, &expected_tokens);
     }
 
     #[test]
-    fn test_scanner_underscore_in_name() {
+    fn test_lexer_underscore_in_name() {
         let program = "self.make_token";
         let expected_tokens = [Identifier, Dot, Identifier, EOF];
-        test_scanner(program, &expected_tokens);
+        test_lexer(program, &expected_tokens);
     }
 
-    fn test_scanner<'a>(program: &'a str, expected_tokens: &'a[TokenType]) -> Vec<Token<'a>> {
-        let mut scanner = Scanner::new(program);
-        let tokens = scanner.scan();
+    //#[test]
+    fn test_lexer_literal_speed() {
+        let literals = ["and", "continue", "else", "false", "for", "fn", "if", "let", "match", "or", "print", "return", "true", "while"];
+        let literal_size: usize = literals.len();
+        let mut rng = thread_rng();
+        const SIZE: usize = 50_000_000;
+        let mut program: String = Default::default();
+        for _ in 0..(SIZE - 1) {
+            program += " ";
+            program += literals.get((rng.gen::<f64>() * literal_size as f64).floor() as usize).unwrap();
+        }
+        let mut lexer = Lexer::new(&program);
+        let now = Instant::now();
+        let tokens = lexer.scan();
+        let elapsed = now.elapsed();
+        eprintln!("{}", tokens[SIZE - 1].line);
+        eprintln!("Elapsed: {:.2?}", elapsed);
+    }
+
+    fn test_lexer<'a>(program: &'a str, expected_tokens: &'a[TokenType]) -> Vec<Token<'a>> {
+        let mut lexer = Lexer::new(program);
+        let tokens = lexer.scan();
         assert_eq!(tokens.len(), expected_tokens.len());
         let mut index = 0;
         for token in &tokens {
