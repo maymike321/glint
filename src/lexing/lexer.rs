@@ -169,13 +169,12 @@ impl<'a> Lexer<'a> {
         Token::new(token_type, &self.text[self.start_position..self.current_position], self.line)
     }
 
-    fn advance(&mut self) -> Option<char> {
+    fn advance(&mut self) {
         if self.current == None {
             panic!("Reached end of file unexpectedly.");
         }
         self.current = self.iterator.next();
         self.current_position += 1;
-        self.current
     }
 
     fn identifier(&mut self) -> Token<'a> {
